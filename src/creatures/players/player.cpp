@@ -42,6 +42,7 @@
 #include "enums/player_blessings.hpp"
 
 //Custom AI llama
+#include <future>
 #include "llama_server.hpp"
 
 MuteCountMap Player::muteCountMap;
@@ -276,13 +277,18 @@ void Player::sendAIMsg(std::shared_ptr<Player> loginPlayer) const {
 }
 
 std::string Player::broadcast_Ai(std::shared_ptr<Player> loginPlayer) const {
-    llamaSendTextAsync([loginPlayer](const std::string &text) {
-        std::string responseText = text.empty() ? "No response received from the NPC." : text;
-        loginPlayer->sendTextMessage(TextMessage(MESSAGE_FAILURE, fmt::format("NPC response: {}", responseText)));
-        return responseText.c_str();
-    },
-                       15); // Adjust the timeout here (10 seconds in this case)
-    return "";
+	std::promise<std::string> promise;
+	std::future<std::string> future = promise.get_future();
+
+	llamaSendTextAsync([loginPlayer, &promise](const std::string &text) {
+		std::string responseText = text.empty() ? "No response received from the NPC." : text;
+		loginPlayer->sendTextMessage(TextMessage(MESSAGE_FAILURE, fmt::format("NPC response: {}", responseText)));
+		promise.set_value(responseText); // Set the response in the promise
+	},
+	                   10);
+
+	// Wait for the response to be set (blocking)
+	return future.get(); // This will block until the async task completes
 }
 
 
