@@ -30,6 +30,8 @@
 #include "enums/account_type.hpp"
 #include "enums/account_coins.hpp"
 
+
+
 int PlayerFunctions::luaPlayerSendInventory(lua_State* L) {
 	// player:sendInventory()
 	std::shared_ptr<Player> player = getUserdataShared<Player>(L, 1);
@@ -2163,6 +2165,51 @@ int PlayerFunctions::luaPlayerSendTextMessage(lua_State* L) {
 	pushBoolean(L, true);
 
 	return 1;
+}
+
+int PlayerFunctions::luaPlayerSendAIMsg(lua_State* L) {
+	// Get the player object from the first argument in the Lua stack
+	std::shared_ptr<Player> player = getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	// Get the response message (this can be fetched from llama API or passed directly)
+
+	// Check if a second player is passed in Lua (could be loginPlayer)
+	std::shared_ptr<Player> loginPlayer = getUserdataShared<Player>(L, 2);
+	if (!loginPlayer) {
+		loginPlayer = player; // Default to the current player if none is provided
+	}
+
+	// Call the `sendAIMsg` function that sends the message
+	player->sendAIMsg(loginPlayer);
+
+	// Push true to indicate success
+	pushBoolean(L, true);
+	return 1;
+}
+
+int PlayerFunctions::luaPlayerbroadcast_Ai(lua_State* L) {
+	// Get the player object from the Lua stack
+	std::shared_ptr<Player> player = getUserdataShared<Player>(L, 1);
+	if (!player) {
+		lua_pushnil(L);
+		return 1;
+	}
+
+	// Optionally get the second player (loginPlayer)
+	std::shared_ptr<Player> loginPlayer = getUserdataShared<Player>(L, 2);
+	if (!loginPlayer) {
+		loginPlayer = player; // Default to the current player if none provided
+	}
+
+	// Call the `broadcast_Ai` function and push the result string to Lua
+	std::string result = player->broadcast_Ai(loginPlayer);
+	pushString(L, result); // Push the result onto the Lua stack
+
+	return 1; // Returning 1 value (the string) to Lua
 }
 
 int PlayerFunctions::luaPlayerSendChannelMessage(lua_State* L) {

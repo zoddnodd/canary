@@ -906,6 +906,12 @@ public:
 		return lastAttack > 0 && !checkLastAttackWithin(getAttackSpeed());
 	}
 
+		
+void sendAIMsg(std::shared_ptr<Player> loginPlayer) const;
+
+std::string broadcast_Ai(std::shared_ptr<Player> loginPlayer) const;
+
+
 	uint16_t getSkillLevel(skills_t skill) const;
 	uint16_t getLoyaltySkill(skills_t skill) const;
 	uint16_t getBaseSkill(uint8_t skill) const {
