@@ -31,6 +31,8 @@
 
 #include "core.hpp"
 
+#include "llama_server.hpp"
+
 CanaryServer::CanaryServer(
 	Logger &logger,
 	RSA &rsa,
@@ -105,6 +107,7 @@ int CanaryServer::run() {
 				} else {
 					g_game().setGameState(GAME_STATE_NORMAL);
 					g_webhook().sendMessage(":green_circle: Server is now **online**");
+					llama_connect();
 				}
 
 				loaderStatus = LoaderStatus::LOADED;

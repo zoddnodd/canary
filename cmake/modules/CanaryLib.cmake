@@ -21,6 +21,7 @@ add_subdirectory(utils)
 
 # Add more global sources - please add preferably in the sub_directory CMakeLists.
 target_sources(${PROJECT_NAME}_lib PRIVATE canary_server.cpp)
+target_sources(${PROJECT_NAME}_lib PRIVATE llama_server.cpp)
 
 # Conditional Precompiled Headers
 if(USE_PRECOMPILED_HEADER)
