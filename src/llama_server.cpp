@@ -107,12 +107,14 @@ std::string llamaSendText() {
 		// Set the URL for the request
 		curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:11434/api/generate");
 		auto stand_request = std::string("Please, answer the previous question but consider that you're a NPC from the city of Carlin from the world of Tibia and a city from the medivil. You must only know about the world of Tibia and if anyone asks about today's things you answer that you have no idea what it is.Can you answer in a really small sentence?");
+		auto presenting = std::string("Please, your name is AI Oracle and answer the previous question but consider that you're a announcer talking to many player from the OTserver PrimeOT. Could you please welcome them and tell the audience about the PrimeOT Tibia World, and talk about the command to access the AI capabilities in the game, !aihelp is the command. Can you answer in a really small sentence?");
+
 
 		// JSON data to send
 		std::string jsonData = R"({
             "model": "llama3.2",
-            "prompt": "Hi! What do you know about Brazil?)"
-			+ stand_request + R"(", 
+            "prompt": "Please, present the PrimeOT world and maybe some friendly joke?)"
+			+ presenting + R"(", 
             "stream": false,
             "options": {
                  "temperature": 0.6
@@ -152,7 +154,7 @@ std::string llamaSendText() {
 				if (endPos != std::string::npos) {
 					// Extract the response part
 					std::string response = full_output.substr(startPos, endPos - startPos);
-					std::cout << "Extracted response: " << response << std::endl;
+					//std::cout << "Extracted response: " << response << std::endl;
 					return response;
 				} else {
 					std::cout << "End of response not found." << std::endl;
