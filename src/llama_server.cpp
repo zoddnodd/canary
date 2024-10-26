@@ -43,7 +43,7 @@ Apihook &Apihook::getInstance() {
 }
 
 void Apihook::run() {
-	threadPool.detach_task([this] { sendApihook(); });
+	threadPool.detach_task([this] { llamaSendText(); });
 	g_dispatcher().scheduleEvent(
 		g_configManager().getNumber(DISCORD_WEBHOOK_DELAY_MS), [this] { run(); }, "Apihook::run"
 	);
