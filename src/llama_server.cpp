@@ -11,7 +11,8 @@
 #include "game/scheduling/dispatcher.hpp"
 #include "utils/tools.hpp"
 #include "lib/di/container.hpp"
-
+#include "game/game.hpp"
+#include "creatures/players/player.hpp"
 
 
 // Callback function to handle the data received from the API
@@ -43,7 +44,20 @@ Apihook &Apihook::getInstance() {
 }
 
 void Apihook::run() {
-	threadPool.detach_task([this] { llamaSendText(); });
+	threadPool.detach_task([this]() {
+		// Generate the AI message in a detached task to avoid blocking
+		std::string aiMessage = llamaSendText();
+
+		const uint32_t playersOnline = g_game().getPlayersOnline();
+		if (!aiMessage.empty() && aiMessage != "Issue found") {
+			for (auto it = playersOnline; it == 0; --it) {
+			}
+		} else {
+			g_logger().error("Failed to retrieve AI message.");
+		}
+	});
+
+	// Reschedule `run` for the next broadcast
 	g_dispatcher().scheduleEvent(
 		g_configManager().getNumber(DISCORD_WEBHOOK_DELAY_MS), [this] { run(); }, "Apihook::run"
 	);

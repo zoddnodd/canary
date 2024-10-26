@@ -241,7 +241,7 @@ bool Player::isSuppress(ConditionType_t conditionType, bool attackerPlayer) cons
 	return m_conditionSuppressions[static_cast<size_t>(conditionType)];
 }
 
-void llamaSendTextAsync(std::function<void(const std::string &)> callback, int timeoutSeconds = 5) {
+void llamaSendTextAsync(std::function<void(const std::string &)> callback, int timeoutSeconds = 0) {
     std::thread([callback, timeoutSeconds]() {
         std::string response;
         bool gotResponse = false;
@@ -255,7 +255,7 @@ void llamaSendTextAsync(std::function<void(const std::string &)> callback, int t
         // Give the API call thread some time to complete
         int elapsedSeconds = 0;
         while (elapsedSeconds < timeoutSeconds && !gotResponse) {
-            std::this_thread::sleep_for(std::chrono::seconds(1)); // Sleep for 1 second
+            std::this_thread::sleep_for(std::chrono::seconds(0)); // Sleep for 1 second
             elapsedSeconds++;
         }
 
