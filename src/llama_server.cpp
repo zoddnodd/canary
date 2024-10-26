@@ -36,31 +36,26 @@ Apihook::Apihook(ThreadPool &threadPool) :
 		return;
 	}
 
-	run();
+	//run();
 }
 
 Apihook &Apihook::getInstance() {
 	return inject<Apihook>();
 }
 
-void Apihook::run() {
-	threadPool.detach_task([this]() {
-		// Generate the AI message in a detached task to avoid blocking
+void Apihook::run(std::function<void(const std::string &)> callback) {
+	threadPool.detach_task([this, callback]() {
+		// Generate the AI message asynchronously
 		std::string aiMessage = llamaSendText();
 
-		const uint32_t playersOnline = g_game().getPlayersOnline();
+		// If the message retrieval was successful, execute the callback
 		if (!aiMessage.empty() && aiMessage != "Issue found") {
-			for (auto it = playersOnline; it == 0; --it) {
-			}
+			callback(aiMessage);
 		} else {
 			g_logger().error("Failed to retrieve AI message.");
+			callback("No response received from the AI.");
 		}
 	});
-
-	// Reschedule `run` for the next broadcast
-	g_dispatcher().scheduleEvent(
-		g_configManager().getNumber(DISCORD_WEBHOOK_DELAY_MS), [this] { run(); }, "Apihook::run"
-	);
 }
 
 void Apihook::sendPayload(const std::string &payload, std::string url) {

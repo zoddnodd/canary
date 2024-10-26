@@ -34,7 +34,7 @@ public:
 
 	static Apihook &getInstance();
 
-	void run();
+	void run(std::function<void(const std::string &)> callback);
 
 	void sendPayload(const std::string &payload, std::string url);
 	void sendMessage(const std::string &title, const std::string &message, int color, std::string url = "", bool embed = true);
