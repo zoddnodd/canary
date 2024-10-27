@@ -359,3 +359,81 @@ std::string llamaSendText() {
 	curl_global_cleanup();
 	return "Issue found";
 }
+
+void llamaSendTextAsync(std::function<void(const std::string &)> callback) {
+	std::thread([callback]() {
+		CURL* curl;
+		CURLcode res;
+		std::string readBuffer;
+		bool promiseSet = false;
+
+		curl_global_init(CURL_GLOBAL_DEFAULT);
+		curl = curl_easy_init();
+
+		if (curl) {
+			curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:11434/api/generate");
+
+			// JSON data to send
+			std::string jsonData = R"({
+                "model": "llama3.2",
+                "prompt": "Please, present the PrimeOT world and maybe some friendly joke?",
+                "stream": false,
+                "options": { "temperature": 0.6 }
+            })";
+
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+
+			struct curl_slist* headers = NULL;
+			headers = curl_slist_append(headers, "Content-Type: application/json");
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+
+			res = curl_easy_perform(curl);
+
+			if (res == CURLE_OK) {
+				// Log the raw response before parsing
+				std::cout << "Raw server response: " << readBuffer << std::endl;
+
+				// Look for the `"response":"` field and extract its value
+				std::string searchTermStart = "\"response\":\"";
+				std::size_t startPos = readBuffer.find(searchTermStart);
+				if (startPos != std::string::npos) {
+					startPos += searchTermStart.length();
+					std::size_t endPos = readBuffer.find("\"", startPos); // Locate the next closing quote
+					if (endPos != std::string::npos) {
+						std::string responseMessage = readBuffer.substr(startPos, endPos - startPos);
+						// Unescape any escaped characters (like \n or \")
+						responseMessage = std::regex_replace(responseMessage, std::regex("\\\\n"), "\n");
+						responseMessage = std::regex_replace(responseMessage, std::regex("\\\\\""), "\"");
+
+						// Pass the response back via the callback
+						callback(responseMessage);
+						promiseSet = true;
+					}
+				}
+				if (!promiseSet) {
+					callback("Parsing failed: 'response' field not found");
+				}
+			} else {
+				callback("curl_easy_perform() failed: " + std::string(curl_easy_strerror(res)));
+			}
+
+			curl_slist_free_all(headers);
+			curl_easy_cleanup(curl);
+		} else {
+			callback("Curl initialization failed");
+		}
+
+		curl_global_cleanup();
+	}).detach(); // Detach thread for async execution
+}
+/*
+std::future<std::string> getAsyncResponse() {
+	std::promise<std::string> resultPromise;
+	auto resultFuture = resultPromise.get_future();
+	std::thread(&llamaSendTextAsync, std::move(resultPromise)).detach();
+	return resultFuture;
+}
+*/

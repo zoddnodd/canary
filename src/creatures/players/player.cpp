@@ -42,8 +42,12 @@
 #include "enums/player_blessings.hpp"
 
 //Custom AI llama
-#include <future>
 #include "llama_server.hpp"
+
+#include <future>
+#include <string>
+#include <memory>
+#include <chrono>
 
 MuteCountMap Player::muteCountMap;
 
@@ -280,16 +284,14 @@ std::string Player::broadcast_Ai(std::shared_ptr<Player> loginPlayer) const {
 	std::promise<std::string> promise;
 	std::future<std::string> future = promise.get_future();
 
-	// Run the API hook and provide a callback to handle the response
-	g_apihook().run([&promise](const std::string &responseText) {
-		// Set the response in the promise
-		promise.set_value(responseText);
+	// Run the API hook and provide a callback to handle the response asynchronously
+	llamaSendTextAsync([&promise](const std::string &responseText) {
+		promise.set_value(responseText); // Set the response in the promise
 	});
 
-	// Wait for the response to be set (blocking)
+	// Wait for the response (non-blocking for the main server)
 	return future.get();
 }
-
 
 void Player::addConditionSuppressions(const std::array<ConditionType_t, ConditionType_t::CONDITION_COUNT> &addConditions) {
 	for (const auto &conditionType : addConditions) {

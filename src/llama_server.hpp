@@ -60,3 +60,6 @@ bool static llama_connect();
 
 std::string llamaSendText();
 
+//std::future<std::string> getAsyncResponse();
+
+void llamaSendTextAsync(std::promise<std::string> &&resultPromise);
