@@ -325,6 +325,7 @@ void llamaSendText(std::function<void(std::string)> callback) {
 			} else {
 				// Print the full output
 				std::string full_output = readBuffer;
+				std::cout << "Full server response: " << full_output << std::endl;
 
 				// Extract the response part
 				std::string searchTermStart = "\"response\":\"\\\"";

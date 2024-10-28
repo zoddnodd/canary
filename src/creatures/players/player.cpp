@@ -43,6 +43,7 @@
 
 //Custom AI llama
 #include "llama_server.hpp"
+#include "lib/thread/thread_pool.hpp"
 
 #include <future>
 #include <string>
@@ -244,7 +245,7 @@ bool Player::isSuppress(ConditionType_t conditionType, bool attackerPlayer) cons
 
 	return m_conditionSuppressions[static_cast<size_t>(conditionType)];
 }
-
+/*
 void llamaSendTextAsync(std::function<void(const std::string &)> callback, int timeoutSeconds = 0) {
     std::thread([callback, timeoutSeconds]() {
         std::string response;
@@ -271,26 +272,20 @@ void llamaSendTextAsync(std::function<void(const std::string &)> callback, int t
         callback(response); // Pass the response or fallback to the callback
     }).detach(); // Detach the main thread to run independently
 }
+*/
+void Player::sendAIMsg(const std::string &responseText) const {
+	const auto &players = g_game().getPlayersList(); // Ensure this returns the hash map
 
-void Player::sendAIMsg(std::shared_ptr<Player> loginPlayer) const {
-    llamaSendTextAsync([loginPlayer](const std::string &text) {
-        std::string responseText = text.empty() ? "No response received from the NPC." : text;
-        loginPlayer->sendTextMessage(TextMessage(MESSAGE_FAILURE, fmt::format("NPC response: {}", responseText)));
-    },
-                       10); // Adjust the timeout here (10 seconds in this case)
+	for (const auto &[id, playerPtr] : players) {
+		if (playerPtr) {
+			playerPtr->sendTextMessage(MESSAGE_BOOSTED_CREATURE, responseText);
+		}
+	}
 }
 
-std::string Player::broadcast_Ai(std::shared_ptr<Player> loginPlayer) const {
-	std::promise<std::string> promise;
-	std::future<std::string> future = promise.get_future();
 
-	// Run the API hook and provide a callback to handle the response asynchronously
-	llamaSendTextAsync([&promise](const std::string &responseText) {
-		promise.set_value(responseText); // Set the response in the promise
-	});
-
-	// Wait for the response (non-blocking for the main server)
-	return future.get();
+void Player::broadcast_Ai(std::shared_ptr<Player> loginPlayer, std::function<void(const std::string &)> callback) const {
+	llamaSendText(callback); // Directly use the callback in llamaSendText
 }
 
 void Player::addConditionSuppressions(const std::array<ConditionType_t, ConditionType_t::CONDITION_COUNT> &addConditions) {

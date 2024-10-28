@@ -34,7 +34,7 @@ public:
 
 	static Apihook &getInstance();
 
-	void run(std::function<void(const std::string &)> callback);
+	//void run(std::function<void(const std::string &)> callback);
 
 	void sendPayload(const std::string &payload, std::string url);
 	void sendMessage(const std::string &title, const std::string &message, int color, std::string url = "", bool embed = true);
@@ -58,8 +58,11 @@ constexpr auto g_apihook = Apihook::getInstance;
 
 bool static llama_connect();
 
-std::string llamaSendText();
+//std::string llamaSendText();
 
 //std::future<std::string> getAsyncResponse();
 
-void llamaSendTextAsync(std::promise<std::string> &&resultPromise);
+//void llamaSendTextAsync(std::promise<std::string> &&resultPromise);
+
+void llamaSendText(std::function<void(std::string)> callback);
+

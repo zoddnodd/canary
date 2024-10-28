@@ -16,6 +16,8 @@
 #include "lua/functions/creatures/player/party_functions.hpp"
 #include "lua/functions/creatures/player/vocation_functions.hpp"
 
+#include <optional>
+
 class PlayerFunctions final : LuaScriptInterface {
 private:
 	static void init(lua_State* L) {
@@ -60,8 +62,8 @@ private:
 		registerMethod(L, "Player", "setTraining", PlayerFunctions::luaPlayerSetTraining);
 
 				// Custom AI functions
-		registerMethod(L, "Player", "SendAIMsg", PlayerFunctions::luaPlayerSendAIMsg);
-		registerMethod(L, "Player", "broadcast_Ai", PlayerFunctions::luaPlayerbroadcast_Ai); 
+		//registerMethod(L, "Player", "SendAIMsg", PlayerFunctions::luaPlayerSendAIMsg);
+		registerMethod(L, "Player", "broadcast_Ai", PlayerFunctions::luaPlayerbroadcast_Ai);
 
 		registerMethod(L, "Player", "getFreeCapacity", PlayerFunctions::luaPlayerGetFreeCapacity);
 
@@ -479,8 +481,13 @@ private:
 
 
 	//Custom AI system by Zodd
-	static int luaPlayerSendAIMsg(lua_State* L);
+	//static int luaPlayerSendAIMsg(lua_State* L);
 	static int luaPlayerbroadcast_Ai(lua_State* L);
+
+	
+
+
+
 
 	static int luaPlayerGetSkillLevel(lua_State* L);
 	static int luaPlayerGetEffectiveSkillLevel(lua_State* L);

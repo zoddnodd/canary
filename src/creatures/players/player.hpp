@@ -907,10 +907,17 @@ public:
 	}
 
 		
-void sendAIMsg(std::shared_ptr<Player> loginPlayer) const;
+//void sendAIMsg(std::shared_ptr<Player> loginPlayer) const;
+	void sendAIMsg(const std::string &responseText) const;
 
-std::string broadcast_Ai(std::shared_ptr<Player> loginPlayer) const;
+//void broadcast_Ai(std::shared_ptr<Player> loginPlayer, std::function<void(std::string)> callback) const;
 
+//std::string broadcast_Ai(std::shared_ptr<Player> loginPlayer) const;
+
+	std::string broadcast_Ai(std::shared_ptr<Player> loginPlayer) const;
+
+	// New overload to accept a callback
+	void broadcast_Ai(std::shared_ptr<Player> loginPlayer, std::function<void(const std::string &)> callback) const;
 
 	uint16_t getSkillLevel(skills_t skill) const;
 	uint16_t getLoyaltySkill(skills_t skill) const;

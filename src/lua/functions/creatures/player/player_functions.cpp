@@ -30,6 +30,11 @@
 #include "enums/account_type.hpp"
 #include "enums/account_coins.hpp"
 
+#include <queue>
+#include <mutex>
+#include <string>
+#include <optional>
+
 
 
 int PlayerFunctions::luaPlayerSendInventory(lua_State* L) {
@@ -2166,7 +2171,7 @@ int PlayerFunctions::luaPlayerSendTextMessage(lua_State* L) {
 
 	return 1;
 }
-
+/*
 int PlayerFunctions::luaPlayerSendAIMsg(lua_State* L) {
 	// Get the player object from the first argument in the Lua stack
 	std::shared_ptr<Player> player = getUserdataShared<Player>(L, 1);
@@ -2190,26 +2195,59 @@ int PlayerFunctions::luaPlayerSendAIMsg(lua_State* L) {
 	pushBoolean(L, true);
 	return 1;
 }
+*/
+
+
+
+
+std::queue<std::string> aiResponseQueue;
+std::mutex queueMutex;
+
+void pushToQueue(const std::string &response) {
+	std::lock_guard<std::mutex> lock(queueMutex);
+	aiResponseQueue.push(response);
+}
+
+std::optional<std::string> popFromQueue() {
+	std::lock_guard<std::mutex> lock(queueMutex);
+	if (aiResponseQueue.empty()) {
+		return std::nullopt;
+	}
+
+	std::string response = aiResponseQueue.front();
+	aiResponseQueue.pop();
+	return response;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 int PlayerFunctions::luaPlayerbroadcast_Ai(lua_State* L) {
-	// Get the player object from the Lua stack
 	std::shared_ptr<Player> player = getUserdataShared<Player>(L, 1);
 	if (!player) {
 		lua_pushnil(L);
 		return 1;
 	}
 
-	// Optionally get the second player (loginPlayer)
 	std::shared_ptr<Player> loginPlayer = getUserdataShared<Player>(L, 2);
 	if (!loginPlayer) {
-		loginPlayer = player; // Default to the current player if none provided
+		loginPlayer = player;
 	}
 
-	// Call the `broadcast_Ai` function and push the result string to Lua
-	std::string result = player->broadcast_Ai(loginPlayer);
-	pushString(L, result); // Push the result onto the Lua stack
+	// Create a callback to add the response to the queue instead of calling Lua directly
+	player->broadcast_Ai(loginPlayer, [](const std::string &responseText) {
+		pushToQueue(responseText);
+	});
 
-	return 1; // Returning 1 value (the string) to Lua
+	return 0; // Return immediately; Lua callback will be handled in the main thread
 }
 
 int PlayerFunctions::luaPlayerSendChannelMessage(lua_State* L) {
