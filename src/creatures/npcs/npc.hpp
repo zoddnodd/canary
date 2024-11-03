@@ -19,6 +19,10 @@ class Creature;
 class Game;
 class SpawnNpc;
 
+std::string getAiResponse();
+void llamaSendNpcText(std::function<void(std::string)> callback);
+
+
 class Npc final : public Creature {
 public:
 	static std::shared_ptr<Npc> createNpc(const std::string &name);

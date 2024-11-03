@@ -16,6 +16,11 @@
 #include "map/spectators.hpp"
 #include "lib/metrics/metrics.hpp"
 
+#include "lib/thread/thread_pool.hpp"
+
+#include <future>
+#include <thread>
+
 int32_t Npc::despawnRange;
 int32_t Npc::despawnRadius;
 
@@ -495,25 +500,40 @@ void Npc::onPlayerCloseChannel(std::shared_ptr<Creature> creature) {
 }
 
 void Npc::onThinkYell(uint32_t interval) {
-	if (npcType->info.yellSpeedTicks == 0) {
-		return;
-	}
+	ThreadPool &pool = inject<ThreadPool>(); // preferably uses constructor injection or setter injection.
 
-	yellTicks += interval;
-	if (yellTicks >= npcType->info.yellSpeedTicks) {
-		yellTicks = 0;
+	// Post a task to the thread pool
+	pool.detach_task([this, interval]() {
+		if (npcType->info.yellSpeedTicks == 0) {
+			return;
+		}
 
-		if (!npcType->info.voiceVector.empty() && (npcType->info.yellChance >= static_cast<uint32_t>(uniform_random(1, 100)))) {
-			uint32_t index = uniform_random(0, npcType->info.voiceVector.size() - 1);
-			const voiceBlock_t &vb = npcType->info.voiceVector[index];
+		yellTicks += interval;
+		if (yellTicks >= npcType->info.yellSpeedTicks) {
+			yellTicks = 0;
 
-			if (vb.yellText) {
-				g_game().internalCreatureSay(static_self_cast<Npc>(), TALKTYPE_YELL, vb.text, false);
-			} else {
-				g_game().internalCreatureSay(static_self_cast<Npc>(), TALKTYPE_SAY, vb.text, false);
+			if (!npcType->info.voiceVector.empty() && (npcType->info.yellChance >= static_cast<uint32_t>(uniform_random(1, 33)))) {
+				uint32_t index = uniform_random(0, npcType->info.voiceVector.size() - 1);
+				const voiceBlock_t &vb = npcType->info.voiceVector[index];
+
+				std::string response;
+				int retryCount = 0;
+				const int maxRetries = 9;
+
+				// Retry loop for `getAiResponse`
+				do {
+					response = getAiResponse();
+					++retryCount;
+				} while (response == "Response not found." && retryCount < maxRetries);
+
+				if (vb.yellText) {
+					g_game().internalCreatureSay(static_self_cast<Npc>(), TALKTYPE_YELL, response, false);
+				} else {
+					g_game().internalCreatureSay(static_self_cast<Npc>(), TALKTYPE_SAY, response, false);
+				}
 			}
 		}
-	}
+	});
 }
 
 void Npc::onThinkWalk(uint32_t interval) {
@@ -686,4 +706,171 @@ void Npc::handlePlayerMove(std::shared_ptr<Player> player, const Position &newPo
 	} else {
 		onPlayerDisappear(player);
 	}
+}
+
+// Callback function to handle the data received from the API
+size_t WriteCallbacknpc(void* contents, size_t size, size_t nmemb, void* userp) {
+	((std::string*)userp)->append((char*)contents, size * nmemb);
+	return size * nmemb;
+}
+/*
+void llamaSendText(std::promise<std::string> promise) {
+	ThreadPool &pool = inject<ThreadPool>();
+	pool.detach_task([promise = std::move(promise)]() mutable { // Move promise here
+		CURL* curl;
+		CURLcode res;
+		std::string readBuffer;
+
+		// Initialize curl
+		curl_global_init(CURL_GLOBAL_DEFAULT);
+		curl = curl_easy_init();
+
+		if (curl) {
+			// Set the URL for the request
+			curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:11434/api/generate");
+
+			// Prepare the JSON data to send
+			std::string jsonData = R"({
+                "model": "llama3.2",
+                "prompt": "Please, your name is NPC from the game Tibia and this is an yelling message. Please, could you talk about the weather, the beautiful environment or past glorious days. Choose one of the last themes to talk but please, write only between 10 to 15 words. Answer in a short sentence.",
+                "stream": false,
+                "options": {
+                    "temperature": 0.8
+                }
+            })";
+
+			// Set the POST data
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+
+			// Specify that we are sending JSON
+			struct curl_slist* headers = NULL;
+			headers = curl_slist_append(headers, "Content-Type: application/json");
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+			// Set callback function to capture the response
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+
+			// Perform the request
+			res = curl_easy_perform(curl);
+
+			// Check if there was an error
+			if (res != CURLE_OK) {
+				std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+				promise.set_value("Error occurred");
+			} else {
+				std::string full_output = readBuffer;
+				std::string searchTermStart = "\"response\":\"\\\"";
+				std::string searchTermEnd = "\\\"";
+				std::size_t startPos = full_output.find(searchTermStart);
+				if (startPos != std::string::npos) {
+					startPos += searchTermStart.length();
+					std::size_t endPos = full_output.find(searchTermEnd, startPos);
+					if (endPos != std::string::npos) {
+						std::string response = full_output.substr(startPos, endPos - startPos);
+						promise.set_value(response);
+					} else {
+						std::cout << "End of response not found." << std::endl;
+						promise.set_value("End of response not found.");
+					}
+				} else {
+					std::cout << "Response not found." << std::endl;
+					promise.set_value("Response not found.");
+				}
+			}
+
+			// Clean up
+			curl_slist_free_all(headers);
+			curl_easy_cleanup(curl);
+		}
+
+		curl_global_cleanup();
+	});
+}
+*/
+void llamaSendNpcText(std::function<void(std::string)> callback) {
+	ThreadPool &pool = inject<ThreadPool>();
+
+	// Move the callback into the lambda to avoid copying issues
+	pool.detach_task([callback = std::move(callback)]() mutable {
+		CURL* curl;
+		CURLcode res;
+		std::string readBuffer;
+
+		// Initialize curl
+		curl_global_init(CURL_GLOBAL_DEFAULT);
+		curl = curl_easy_init();
+
+		if (curl) {
+			// Set the URL for the request
+			curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:11434/api/generate");
+
+			// Prepare the JSON data to send
+			std::string jsonData = R"({
+                "model": "llama3.2",
+"prompt": "Please, your name is NPC from the game Tibia and this is an yelling message. Please, could you talk about the weather, the beautiful environment or past glorious days. Choose one of the last themes to talk but please, write only between 10 to 15 words. Answer in a short sentence.",
+                "stream": false,
+                "options": {
+                    "temperature": 0.9
+                }
+            })";
+
+			// Set the POST data
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+
+			// Specify that we are sending JSON
+			struct curl_slist* headers = NULL;
+			headers = curl_slist_append(headers, "Content-Type: application/json");
+			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+			// Set callback function to capture the response
+			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallbacknpc);
+			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+
+			// Perform the request
+			res = curl_easy_perform(curl);
+
+			// Check if there was an error
+			if (res != CURLE_OK) {
+				std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
+				callback("Error occurred");
+			} else {
+				// Extract and process the response text as you were doing previously
+				std::string full_output = readBuffer;
+				std::string searchTermStart = "\"response\":\"\\\"";
+				std::string searchTermEnd = "\\\"";
+
+				std::size_t startPos = full_output.find(searchTermStart);
+				if (startPos != std::string::npos) {
+					startPos += searchTermStart.length();
+					std::size_t endPos = full_output.find(searchTermEnd, startPos);
+					if (endPos != std::string::npos) {
+						std::string response = full_output.substr(startPos, endPos - startPos);
+						callback(response); // Call the callback with the result
+					} else {
+						callback("End of response not found.");
+					}
+				} else {
+					callback("Response not found.");
+				}
+			}
+
+			// Clean up
+			curl_slist_free_all(headers);
+			curl_easy_cleanup(curl);
+		}
+
+		curl_global_cleanup();
+	});
+}
+std::string getAiResponse() {
+	std::promise<std::string> promise;
+	std::future<std::string> future = promise.get_future();
+
+	llamaSendNpcText([&promise](const std::string &result) {
+		promise.set_value(result);
+	});
+
+	// Wait for the result and return it
+	return future.get();
 }
