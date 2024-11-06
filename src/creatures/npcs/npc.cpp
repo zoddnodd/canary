@@ -20,6 +20,10 @@
 
 #include <future>
 #include <thread>
+#include <vector>
+#include <memory>
+#include <mutex>
+#include <iostream>
 
 int32_t Npc::despawnRange;
 int32_t Npc::despawnRadius;
@@ -536,6 +540,7 @@ void Npc::onThinkYell(uint32_t interval) {
 	});
 }
 
+
 void Npc::onThinkWalk(uint32_t interval) {
 	if (npcType->info.walkInterval == 0 || baseSpeed == 0) {
 		return;
@@ -714,80 +719,6 @@ size_t WriteCallbacknpc(void* contents, size_t size, size_t nmemb, void* userp) 
 	return size * nmemb;
 }
 /*
-void llamaSendText(std::promise<std::string> promise) {
-	ThreadPool &pool = inject<ThreadPool>();
-	pool.detach_task([promise = std::move(promise)]() mutable { // Move promise here
-		CURL* curl;
-		CURLcode res;
-		std::string readBuffer;
-
-		// Initialize curl
-		curl_global_init(CURL_GLOBAL_DEFAULT);
-		curl = curl_easy_init();
-
-		if (curl) {
-			// Set the URL for the request
-			curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:11434/api/generate");
-
-			// Prepare the JSON data to send
-			std::string jsonData = R"({
-                "model": "llama3.2",
-                "prompt": "Please, your name is NPC from the game Tibia and this is an yelling message. Please, could you talk about the weather, the beautiful environment or past glorious days. Choose one of the last themes to talk but please, write only between 10 to 15 words. Answer in a short sentence.",
-                "stream": false,
-                "options": {
-                    "temperature": 0.8
-                }
-            })";
-
-			// Set the POST data
-			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
-
-			// Specify that we are sending JSON
-			struct curl_slist* headers = NULL;
-			headers = curl_slist_append(headers, "Content-Type: application/json");
-			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-			// Set callback function to capture the response
-			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-
-			// Perform the request
-			res = curl_easy_perform(curl);
-
-			// Check if there was an error
-			if (res != CURLE_OK) {
-				std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
-				promise.set_value("Error occurred");
-			} else {
-				std::string full_output = readBuffer;
-				std::string searchTermStart = "\"response\":\"\\\"";
-				std::string searchTermEnd = "\\\"";
-				std::size_t startPos = full_output.find(searchTermStart);
-				if (startPos != std::string::npos) {
-					startPos += searchTermStart.length();
-					std::size_t endPos = full_output.find(searchTermEnd, startPos);
-					if (endPos != std::string::npos) {
-						std::string response = full_output.substr(startPos, endPos - startPos);
-						promise.set_value(response);
-					} else {
-						std::cout << "End of response not found." << std::endl;
-						promise.set_value("End of response not found.");
-					}
-				} else {
-					std::cout << "Response not found." << std::endl;
-					promise.set_value("Response not found.");
-				}
-			}
-
-			// Clean up
-			curl_slist_free_all(headers);
-			curl_easy_cleanup(curl);
-		}
-
-		curl_global_cleanup();
-	});
-}
-*/
 void llamaSendNpcText(std::function<void(std::string)> callback) {
 	ThreadPool &pool = inject<ThreadPool>();
 
@@ -800,10 +731,16 @@ void llamaSendNpcText(std::function<void(std::string)> callback) {
 		// Initialize curl
 		curl_global_init(CURL_GLOBAL_DEFAULT);
 		curl = curl_easy_init();
-
+		if (!curl) {
+			callback("Failed to initialize CURL");
+			return;
+		}
 		if (curl) {
 			// Set the URL for the request
 			curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:11434/api/generate");
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L); // Request timeout in seconds
+			curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L); // Connection timeout
+			curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
 
 			// Prepare the JSON data to send
 			std::string jsonData = R"({
@@ -863,6 +800,121 @@ void llamaSendNpcText(std::function<void(std::string)> callback) {
 		curl_global_cleanup();
 	});
 }
+*/
+
+
+// Static CURL handle and headers
+static CURL* curlHandle = nullptr;
+static struct curl_slist* headers = nullptr;
+static std::mutex curlMutex;
+
+// Initialize CURL once
+void initializeCurl() {
+	if (curl_global_init(CURL_GLOBAL_DEFAULT) != 0) {
+		throw std::runtime_error("Failed to initialize cURL");
+	}
+	curlHandle = curl_easy_init();
+	if (!curlHandle) {
+		throw std::runtime_error("Failed to create cURL handle");
+	}
+
+	// Set the static headers once
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+	curl_easy_setopt(curlHandle, CURLOPT_HTTPHEADER, headers);
+}
+
+// Cleanup function to release resources at shutdown
+void cleanupCurl() {
+	if (curlHandle) {
+		curl_easy_cleanup(curlHandle);
+		curlHandle = nullptr;
+	}
+	if (headers) {
+		curl_slist_free_all(headers);
+		headers = nullptr;
+	}
+	curl_global_cleanup();
+}
+
+// Write callback for cURL to capture response
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* userData) {
+	size_t totalSize = size * nmemb;
+	userData->append((char*)contents, totalSize);
+	//std::cout << "Received data: " << std::string((char*)contents, totalSize) << std::endl; // Add logging
+	return totalSize;
+}
+
+void llamaSendNpcText(std::function<void(std::string)> callback) {
+	// Ensure CURL is initialized
+	static bool initialized = ([]() {
+		initializeCurl();
+		atexit(cleanupCurl); // Register cleanup to run at program exit
+		return true;
+	})();
+
+	// Queue the task on the thread pool
+	ThreadPool &pool = inject<ThreadPool>();
+	pool.detach_task([callback = std::move(callback)]() mutable {
+		std::string readBuffer;
+
+		// Lock to ensure thread-safe access to the shared curl handle
+		std::lock_guard<std::mutex> lock(curlMutex);
+
+		// Set options specific to this request
+		curl_easy_setopt(curlHandle, CURLOPT_URL, "http://localhost:11434/api/generate");
+		curl_easy_setopt(curlHandle, CURLOPT_TIMEOUT, 5L); // Timeout after 5 seconds
+		// curl_easy_setopt(curlHandle, CURLOPT_CONNECTTIMEOUT, 2L); // Connection timeout
+		//curl_easy_setopt(curlHandle, CURLOPT_VERBOSE, 1L);
+		curl_easy_setopt(curlHandle, CURLOPT_TCP_KEEPALIVE, 1L); // Enable Keep-Alive
+		curl_easy_setopt(curlHandle, CURLOPT_TCP_KEEPIDLE, 1L); // Send first Keep-Alive after 5 seconds of idleness
+		curl_easy_setopt(curlHandle, CURLOPT_TCP_KEEPINTVL, 1L); // Check every 5 seconds after
+
+		std::string jsonData = R"({
+            "model": "llama3.2",
+            "prompt": "Please, your name is NPC from the game Tibia and this is a yelling message. Please, could you talk about the weather, the beautiful environment, or past glorious days? Choose one of the last themes to talk about but please, write only between 10 to 15 words. Answer in a short sentence.",
+            "stream": false,
+            "options": {
+                "temperature": 0.9
+            }
+        })";
+
+		curl_easy_setopt(curlHandle, CURLOPT_POSTFIELDS, jsonData.c_str());
+		curl_easy_setopt(curlHandle, CURLOPT_WRITEFUNCTION, WriteCallback);
+		curl_easy_setopt(curlHandle, CURLOPT_WRITEDATA, &readBuffer);
+
+		// Perform the request
+		CURLcode res = curl_easy_perform(curlHandle);
+
+		// Check for errors
+		if (res != CURLE_OK) {
+			std::cerr << "cURL request failed: " << curl_easy_strerror(res) << std::endl;
+			callback("Error occurred");
+		} else {
+			// Process the response text
+			std::string full_output = readBuffer;
+			std::string searchTermStart = "\"response\":\"";
+			std::string searchTermEnd = "\"";
+
+			std::size_t startPos = full_output.find(searchTermStart);
+			if (startPos != std::string::npos) {
+				startPos += searchTermStart.length();
+				std::size_t endPos = full_output.find(searchTermEnd, startPos);
+				if (endPos != std::string::npos) {
+					std::string response = full_output.substr(startPos, endPos - startPos);
+					// If response has escaped quotes, remove them
+					response.erase(std::remove(response.begin(), response.end(), '\\'), response.end());
+					callback(response);
+				} else {
+					callback("End of response not found.");
+				}
+			} else {
+				callback("Response not found.");
+			}
+		}
+	});
+}
+
+
 std::string getAiResponse() {
 	std::promise<std::string> promise;
 	std::future<std::string> future = promise.get_future();
