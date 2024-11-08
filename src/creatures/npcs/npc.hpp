@@ -18,13 +18,13 @@
 class Creature;
 class Game;
 class SpawnNpc;
-
+/*
 std::string getAiResponse();
 void llamaSendNpcText(std::function<void(std::string)> callback);
 
 void initializeCurl();
 void cleanupCurl();
-
+*/
 
 class Npc final : public Creature {
 public:

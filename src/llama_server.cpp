@@ -295,7 +295,7 @@ void llamaSendText(std::function<void(std::string)> callback) {
 			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L); // Request timeout in seconds
 			//curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L); // Connection timeout
 			curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
-			curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+			//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
 			// Prepare the JSON data to send
 			std::string jsonData = R"({

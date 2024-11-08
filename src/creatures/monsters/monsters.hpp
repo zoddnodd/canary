@@ -72,7 +72,7 @@ class MonsterType {
 		std::vector<spellBlock_t> defenseSpells;
 		std::vector<summonBlock_t> summons;
 
-		Skulls_t skull = SKULL_NONE;
+		Skulls_t skull = SKULL_WHITE;
 		Outfit_t outfit = {};
 		RaceType_t race = RACE_BLOOD;
 		RespawnType respawnType = {};
@@ -159,6 +159,7 @@ class MonsterType {
 		bool isForgeCreature = true;
 		bool isPreyable = true;
 		bool isPreyExclusive = false;
+		bool isAi = false;
 
 		MonstersEvent_t eventType = MONSTERS_EVENT_NONE;
 	};

@@ -44,6 +44,7 @@ Monster::Monster(const std::shared_ptr<MonsterType> mType) :
 	hiddenHealth = mType->info.hiddenHealth;
 	targetDistance = mType->info.targetDistance;
 
+	skull = SKULL_WHITE;
 
 	// Register creature events
 	for (const std::string &scriptName : mType->info.scripts) {

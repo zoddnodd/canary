@@ -519,7 +519,7 @@ void Npc::onThinkYell(uint32_t interval) {
 			if (!npcType->info.voiceVector.empty() && (npcType->info.yellChance >= static_cast<uint32_t>(uniform_random(1, 33)))) {
 				uint32_t index = uniform_random(0, npcType->info.voiceVector.size() - 1);
 				const voiceBlock_t &vb = npcType->info.voiceVector[index];
-
+				/*
 				std::string response;
 				int retryCount = 0;
 				const int maxRetries = 9;
@@ -529,11 +529,11 @@ void Npc::onThinkYell(uint32_t interval) {
 					response = getAiResponse();
 					++retryCount;
 				} while (response == "Response not found." && retryCount < maxRetries);
-
+				*/
 				if (vb.yellText) {
-					g_game().internalCreatureSay(static_self_cast<Npc>(), TALKTYPE_YELL, response, false);
+					g_game().internalCreatureSay(static_self_cast<Npc>(), TALKTYPE_YELL, vb.text, false);
 				} else {
-					g_game().internalCreatureSay(static_self_cast<Npc>(), TALKTYPE_SAY, response, false);
+					g_game().internalCreatureSay(static_self_cast<Npc>(), TALKTYPE_SAY, vb.text, false);
 				}
 			}
 		}
@@ -712,13 +712,13 @@ void Npc::handlePlayerMove(std::shared_ptr<Player> player, const Position &newPo
 		onPlayerDisappear(player);
 	}
 }
-
+/*
 // Callback function to handle the data received from the API
 size_t WriteCallbacknpc(void* contents, size_t size, size_t nmemb, void* userp) {
 	((std::string*)userp)->append((char*)contents, size * nmemb);
 	return size * nmemb;
 }
-/*
+
 void llamaSendNpcText(std::function<void(std::string)> callback) {
 	ThreadPool &pool = inject<ThreadPool>();
 
@@ -800,7 +800,7 @@ void llamaSendNpcText(std::function<void(std::string)> callback) {
 		curl_global_cleanup();
 	});
 }
-*/
+
 
 
 // Static CURL handle and headers
@@ -926,3 +926,4 @@ std::string getAiResponse() {
 	// Wait for the result and return it
 	return future.get();
 }
+*/

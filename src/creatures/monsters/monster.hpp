@@ -16,6 +16,12 @@
 class Creature;
 class Game;
 
+std::string getAiResponse();
+void llamaSendNpcText(std::function<void(std::string)> callback);
+
+void initializeCurl();
+void cleanupCurl();
+
 class Monster final : public Creature {
 public:
 	static std::shared_ptr<Monster> createMonster(const std::string &name);
@@ -148,6 +154,7 @@ public:
 	void onCreatureSay(std::shared_ptr<Creature> creature, SpeakClasses type, const std::string &text) override;
 	void onAttackedByPlayer(std::shared_ptr<Player> attackerPlayer);
 	void onSpawn();
+
 
 	void drainHealth(std::shared_ptr<Creature> attacker, int32_t damage) override;
 	void changeHealth(int32_t healthChange, bool sendHealthChange = true) override;

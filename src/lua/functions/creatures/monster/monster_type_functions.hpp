@@ -127,6 +127,9 @@ public:
 		registerMethod(L, "MonsterType", "canWalkOnFire", MonsterTypeFunctions::luaMonsterTypeCanWalkOnFire);
 		registerMethod(L, "MonsterType", "canWalkOnPoison", MonsterTypeFunctions::luaMonsterTypeCanWalkOnPoison);
 
+		//NPC-MONSTER AI CUSTOM SYSTEM by zodd
+		registerMethod(L, "MonsterType", "isAi", MonsterTypeFunctions::luaMonsterTypeisAi);
+
 		registerMethod(L, "MonsterType", "strategiesTargetNearest", MonsterTypeFunctions::luaMonsterTypeStrategiesTargetNearest);
 		registerMethod(L, "MonsterType", "strategiesTargetHealth", MonsterTypeFunctions::luaMonsterTypeStrategiesTargetHealth);
 		registerMethod(L, "MonsterType", "strategiesTargetDamage", MonsterTypeFunctions::luaMonsterTypeStrategiesTargetDamage);
@@ -251,6 +254,9 @@ private:
 	static int luaMonsterTypeCanWalkOnEnergy(lua_State* L);
 	static int luaMonsterTypeCanWalkOnFire(lua_State* L);
 	static int luaMonsterTypeCanWalkOnPoison(lua_State* L);
+
+	//NPC-MONSTER AI CUSTOM SYSTEM by zodd 
+	static int luaMonsterTypeisAi(lua_State* L);
 
 	static int luaMonsterTypeStrategiesTargetNearest(lua_State* L);
 	static int luaMonsterTypeStrategiesTargetHealth(lua_State* L);

@@ -1456,6 +1456,22 @@ int MonsterTypeFunctions::luaMonsterTypeCanWalkOnPoison(lua_State* L) {
 	return 1;
 }
 
+int MonsterTypeFunctions::luaMonsterTypeisAi(lua_State* L) {
+	// get: monsterType:isAi() set: monsterType:isAi(bool)
+	const auto monsterType = getUserdataShared<MonsterType>(L, 1);
+	if (monsterType) {
+		if (lua_gettop(L) == 1) {
+			pushBoolean(L, monsterType->info.isAi);
+		} else {
+			monsterType->info.isAi = getBoolean(L, 2, true);
+			pushBoolean(L, true);
+		}
+	} else {
+		lua_pushnil(L);
+	}
+	return 1;
+}
+
 int MonsterTypeFunctions::luaMonsterTypeStrategiesTargetNearest(lua_State* L) {
 	// monsterType:strategiesTargetNearest()
 	const auto monsterType = getUserdataShared<MonsterType>(L, 1);
